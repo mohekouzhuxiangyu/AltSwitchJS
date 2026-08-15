@@ -1,0 +1,277 @@
+/* AltSwitch 渲染层样式
+   中间列表 = macOS 风格卡片；工具条/状态栏 = 简洁普通样式 */
+
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --card-hover: #f0f0f4;
+  --border: #e3e3e8;
+  --text: #1d1d1f;
+  --muted: #86868b;
+  --accent: #007aff;
+  --danger: #ff3b30;
+  --ok: #34c759;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e22;
+    --card: #2b2b30;
+    --card-hover: #33333a;
+    --border: #3a3a41;
+    --text: #f5f5f7;
+    --muted: #98989e;
+    --accent: #0a84ff;
+    --danger: #ff453a;
+    --ok: #32d74b;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  user-select: none;
+}
+
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ---------- 工具条 ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 6px;
+}
+.toolbar-actions { display: flex; gap: 6px; }
+.btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn:hover { background: var(--card-hover); }
+.btn:active { transform: translateY(0.5px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.1); }
+
+/* ---------- 管理员提示条 ---------- */
+.admin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 14px 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(255, 149, 0, 0.12);
+  border: 1px solid rgba(255, 149, 0, 0.4);
+  font-size: 12px;
+}
+.admin-bar.hidden { display: none; }
+
+/* ---------- 快捷键栏 ---------- */
+.hotkey-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 10px;
+}
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.pill .key { font-weight: 600; color: var(--accent); font-size: 12.5px; }
+.status { font-size: 11.5px; }
+.status.err { color: var(--danger); }
+.status.ok { color: var(--ok); }
+
+/* 专注模式开关（macOS 风格 toggle） */
+.focus-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  cursor: pointer;
+  font-size: 12px;
+  user-select: none;
+}
+.switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: #c7c7cc;
+  transition: background 0.2s;
+  flex: none;
+}
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s;
+}
+.switch.on { background: var(--accent); }
+.switch.on .knob { left: 16px; }
+
+/* ---------- 列表（macOS 风格） ---------- */
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 14px 10px;
+}
+.list::-webkit-scrollbar { width: 8px; }
+.list::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.35); border-radius: 4px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  margin-bottom: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.card:hover { background: var(--card-hover); }
+
+/* 复选框（macOS 样式圆角方块） */
+.checkbox {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid #b9b9c2;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.dark .checkbox { background: #3a3a42; border-color: #5c5c66; }
+.card.on .checkbox { background: var(--accent); border-color: var(--accent); }
+.checkbox svg { display: none; }
+.card.on .checkbox svg { display: block; }
+
+/* 应用图标 / 首字母头像 */
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: contain; }
+
+.card-body { flex: 1; min-width: 0; }
+.card-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-sub {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.badge {
+  flex: none;
+  font-size: 10px;
+  color: #fff;
+  background: #ff9500;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.badge.warn {
+  background: #ff3b30;
+}
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 0;
+}
+
+/* ---------- 状态栏 ---------- */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  font-size: 11.5px;
+}
+
+.muted { color: var(--muted); }
+
+/* ---------- 快捷键对话框 ---------- */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.hidden { display: none !important; }
+.dialog {
+  width: 360px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  padding: 20px 22px;
+  text-align: center;
+}
+.dialog h2 { font-size: 15px; margin-bottom: 6px; }
+.dialog .hint { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+.combo {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  min-height: 30px;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: var(--bg);
+}
+.msg { color: var(--danger); font-size: 12px; min-height: 16px; }

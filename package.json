@@ -1,0 +1,97 @@
+{
+  "name": "alt-switch",
+  "productName": "AltSwitch",
+  "version": "1.0.0",
+  "description": "macOS 风格的跨平台应用切换器 (Windows / macOS)，JS 技术栈 (Electron)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test:ffi": "node test-ffi.js",
+    "pack:dir": "electron-packager . AltSwitch --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --no-prune",
+    "pack:mac:dir": "electron-packager . AltSwitch --platform=darwin --arch=universal --out=dist --overwrite",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:all": "electron-builder"
+  },
+  "author": "AltSwitch",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^26.15.3",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "build": {
+    "appId": "com.altswitch.app",
+    "productName": "AltSwitch",
+    "copyright": "Copyright © 2026 AltSwitch",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "platform/**",
+      "assets/**",
+      "package.json",
+      "!**/*.map",
+      "!**/*.md"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/koffi/**"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AltSwitch",
+      "artifactName": "AltSwitch-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "AltSwitch-portable-${version}.exe"
+    },
+    "mac": {
+      "icon": "assets/icon.png",
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'">
+  <title>AltSwitch 窗口切换器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部工具条（普通样式） -->
+    <header class="toolbar">
+      <span id="count" class="muted">已选 0 / 0</span>
+      <div class="toolbar-actions">
+        <button id="btn-all" class="btn">全选</button>
+        <button id="btn-clear" class="btn">清空</button>
+        <button id="btn-refresh" class="btn" title="立即刷新列表">刷新</button>
+      </div>
+    </header>
+
+    <!-- 管理员权限提示条 -->
+    <div id="admin-bar" class="admin-bar hidden">
+      <span id="admin-msg">部分程序以管理员权限运行，需要管理员身份才能切换</span>
+      <button id="btn-admin" class="btn primary">以管理员身份重启</button>
+    </div>
+
+    <!-- 快捷键栏（普通样式） -->
+    <section class="hotkey-bar">
+      <div class="pill"><span class="muted">切换快捷键</span><span id="hotkey" class="key">Alt + `</span></div>
+      <button id="btn-hotkey" class="btn primary">修改…</button>
+      <span id="hotkey-status" class="status"></span>
+      <label class="focus-switch" title="切换时最小化其他勾选窗口，只保留当前窗口">
+        <span class="muted">专注模式</span>
+        <span class="switch" id="switch-focus"><span class="knob"></span></span>
+      </label>
+    </section>
+
+    <!-- 应用列表（macOS 风格卡片） -->
+    <main id="list" class="list"></main>
+
+    <!-- 状态栏（普通样式） -->
+    <footer class="footer">
+      <span class="muted">点击卡片勾选 · 按快捷键在勾选的程序间循环切换</span>
+      <span class="muted">关闭窗口 = 最小化到托盘/程序坞</span>
+    </footer>
+  </div>
+
+  <!-- 修改快捷键对话框 -->
+  <div id="dlg-mask" class="mask hidden">
+    <div class="dialog">
+      <h2>修改快捷键</h2>
+      <p class="hint">按下新的快捷键组合…（Esc 取消）</p>
+      <div id="combo" class="combo">—</div>
+      <p id="dlg-msg" class="msg"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
