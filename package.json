@@ -1,9 +1,17 @@
 {
   "name": "alt-switch",
   "productName": "AltSwitch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "macOS 风格的跨平台应用切换器 (Windows / macOS)，JS 技术栈 (Electron)",
   "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohekouzhuxiangyu/AltSwitchJS.git"
+  },
+  "homepage": "https://github.com/mohekouzhuxiangyu/AltSwitchJS",
+  "bugs": {
+    "url": "https://github.com/mohekouzhuxiangyu/AltSwitchJS/issues"
+  },
   "files": [
     "main.js",
     "preload.js",

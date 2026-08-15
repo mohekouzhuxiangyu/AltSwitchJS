@@ -16,7 +16,7 @@ macOS 风格的应用切换器，**Windows / macOS 通用**。JS 技术栈（Ele
 - **最小化**：关闭窗口即最小化到托盘（Windows 右下角托盘 / macOS 右上角菜单栏图标）并驻留后台，快捷键继续生效；点击托盘/菜单栏图标（macOS 右键可退出）或程序坞图标恢复
 - **深色模式**：跟随系统亮/暗主题
 
-## 安装方式（Windows / macOS 各三种）
+## 安装方式（Windows / macOS 各四种）
 
 ### Windows
 
@@ -25,6 +25,7 @@ macOS 风格的应用切换器，**Windows / macOS 通用**。JS 技术栈（Ele
 | **① 安装器（推荐）** | `release\AltSwitch-Setup-1.0.0.exe` | 图形安装向导，**自动创建桌面快捷方式**和开始菜单项，可卸载 |
 | **② 绿色版 zip** | `release\AltSwitch-win64.zip` | 解压即用，双击 `AltSwitch.exe`；也可用 `dist\AltSwitch-win32-x64.zip` |
 | **③ 源码编译** | 本仓库 | 见下方「源码编译」 |
+| **④ npm 安装** | `npm install alt-switch` | 从 npm 获取最新源码包（含完整 Electron 应用源码），再按下方「源码编译」安装依赖并运行 |
 
 > 另提供 `release\AltSwitch-portable-1.0.0.exe` 单文件便携版（运行时不需安装）。
 
@@ -35,6 +36,7 @@ macOS 风格的应用切换器，**Windows / macOS 通用**。JS 技术栈（Ele
 | **① dmg 镜像** | 在 Mac 上执行 `npm run dist:mac` 生成 `release\AltSwitch-1.0.0.dmg` | 打开后把 `.app` 拖入「应用程序」，再从「应用程序」拖到程序坞/桌面建快捷方式 |
 | **② zip** | 同上生成 `release\AltSwitch-1.0.0-mac.zip` | 解压出 `.app`（可执行程序），拖入「应用程序」 |
 | **③ 源码编译** | 本仓库 | 见下方「源码编译」 |
+| **④ npm 安装** | `npm install alt-switch` | 从 npm 获取最新源码包（含完整 Electron 应用源码），再按下方「源码编译」安装依赖并运行 |
 
 ### 源码编译（跨平台）
 
