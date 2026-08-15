@@ -19,7 +19,8 @@
     "pack:mac:dir": "electron-packager . AltSwitch --platform=darwin --arch=universal --out=dist --overwrite",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "dist:all": "electron-builder"
+    "dist:all": "electron-builder",
+    "release": "node scripts/release.js"
   },
   "author": "AltSwitch",
   "license": "MIT",
