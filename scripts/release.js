@@ -1,9 +1,10 @@
 'use strict';
 // AltSwitch 一键发布脚本
-// 用法:  npm run release [新版本号] [--skip-build] [--skip-github] [--skip-npm] [--draft] [--dry-run]
+// 用法:  npm run release [新版本号] [--skip-build] [--skip-github] [--skip-npm] [--draft] [--upload-only] [--dry-run]
 //
 // 流程: 升版本号(npm version, 自动打 tag vX.Y.Z 并提交) → push master+tag
 //       → 构建安装包 → 创建/更新 GitHub Release 并上传资产 → 发布 npm
+//       --upload-only: 只把 release/ 下当前版本产物补传到已有 Release（不升版本/不构建/不发 npm）
 //
 // 认证:
 //   GitHub: 环境变量 GITHUB_TOKEN / GH_TOKEN；macOS 上自动回退读取钥匙串凭据
@@ -29,6 +30,16 @@ const dryRun = flags.has('--dry-run');
 
 function sh(cmd) { console.log(`[release] $ ${cmd}`); return execSync(cmd, { stdio: 'inherit' }); }
 function shOut(cmd) { return execSync(cmd, { encoding: 'utf8' }).trim(); }
+// 网络抖动时重试（git push / 上传等）
+function shRetry(cmd, tries = 5) {
+  for (let i = 1; i <= tries; i++) {
+    try { sh(cmd); return; } catch (e) {
+      if (i === tries) throw e;
+      log(`命令失败，${i * 6}s 后重试: ${cmd}`);
+      execSync(`sleep ${i * 6}`);
+    }
+  }
+}
 function log(s) { console.log(`[release] ${s}`); }
 function fail(msg) { console.error(`[release] ✗ ${msg}`); process.exit(1); }
 function step(s) { console.log(`\n[release] === ${s} ===`); }
@@ -75,24 +86,28 @@ async function api(pathname, opts = {}) {
 
 async function uploadAsset(releaseId, name, filePath) {
   const token = githubToken();
-  const buf = fs.readFileSync(filePath);
-  log(`上传 ${name} (${(buf.length / 1024 / 1024).toFixed(1)} MB)…`);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10 * 60 * 1000);
+  const sizeMb = (fs.statSync(filePath).size / 1024 / 1024).toFixed(1);
+  log(`上传 ${name} (${sizeMb} MB，curl 自动重试)…`);
+  // 用临时 netrc 传令牌，避免令牌出现在命令行/进程列表
+  const netrc = path.join(os.tmpdir(), `netrc-${Date.now()}`);
+  fs.writeFileSync(netrc, `machine uploads.github.com login x-oauth-basic password ${token}\n`, { mode: 0o600 });
+  const url = `${UPLOADS}/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`;
+  const cmd = [
+    'curl -s -m 580 --retry 5 --retry-all-errors --retry-delay 15 --http2',
+    `--netrc-file ${JSON.stringify(netrc)}`,
+    '-X POST -H "Content-Type: application/octet-stream"',
+    `--data-binary @${JSON.stringify(filePath)}`,
+    JSON.stringify(url),
+  ].join(' ');
   try {
-    const res = await fetch(`${UPLOADS}/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' },
-      body: buf,
-      signal: ctrl.signal,
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      fail(`资产上传失败 ${name}: ${res.status} ${text.slice(0, 200)}`);
-    }
-    log(`  ✓ ${name} 已上传`);
+    const out = execSync(cmd, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 15 * 60 * 1000 });
+    const j = JSON.parse(out);
+    if (j && j.id) { log(`  ✓ ${name} 已上传`); return; }
+    fail(`资产上传失败 ${name}: ${(j && j.message) || '未知错误'}`);
+  } catch (e) {
+    fail(`资产上传失败 ${name}: ${e.message}`);
   } finally {
-    clearTimeout(timer);
+    try { fs.unlinkSync(netrc); } catch (e) { }
   }
 }
 
@@ -140,8 +155,9 @@ async function publishGithub(version) {
   const existing = new Set((release ? release.assets : []).map(a => a.name));
   const dir = path.join(process.cwd(), 'release');
   if (!fs.existsSync(dir)) { log('无 release/ 目录，跳过资产上传'); return url; }
+  // 只上传当前版本的产物（避免把旧版本的安装包传进新 Release）
   const assets = fs.readdirSync(dir)
-    .filter(f => /\.(dmg|zip|exe)$/.test(f) && !f.endsWith('.blockmap'))
+    .filter(f => f.includes(`AltSwitch-${version}`) && /\.(dmg|zip|exe)$/.test(f) && !f.endsWith('.blockmap'))
     .sort();
   for (const name of assets) {
     if (existing.has(name)) { log(`跳过已上传: ${name}`); continue; }
@@ -167,6 +183,17 @@ async function publishNpm() {
   const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
   let version = pkg.version;
 
+  // 仅补传资产模式：不升版本/不推送/不构建/不发 npm，只把 release/ 下当前版本产物传到已有 Release
+  if (flags.has('--upload-only')) {
+    step(`仅上传资产（v${version}）`);
+    if (dryRun) log('(dry-run) 将只上传 release/ 下当前版本资产');
+    else {
+      const url = await publishGithub(version);
+      console.log(`[release] GitHub: ${url}`);
+    }
+    return;
+  }
+
   if (newVersion) {
     step(`版本升级 ${version} → ${newVersion}`);
     const dirty = shOut('git status --porcelain').split('\n').filter(Boolean);
@@ -177,22 +204,22 @@ async function publishNpm() {
   } else {
     let tagExists = false;
     try { shOut(`git rev-parse -q --verify refs/tags/v${version}`); tagExists = true; } catch (e) { }
-    log(`使用当前版本 v${version}${tagExists ? '（tag 已存在，将补齐已发布的部分）' : ''}`);
+    if (!tagExists) {
+      log(`当前版本 v${version} 的 tag 不存在，自动创建…`);
+      if (dryRun) log('(dry-run) 将执行: git tag -a v' + version);
+      else sh(`git tag -a v${version} -m "AltSwitch v${version}"`);
+    }
+    log(`使用当前版本 v${version}`);
   }
 
   step('推送 git');
   if (dryRun) log('(dry-run) 将执行: git push origin master + v' + version);
   else {
-    sh('git push origin master');
-    try { sh(`git push origin v${version}`); } catch (e) { log('tag 推送失败（可能已存在），继续…'); }
+    shRetry('git push origin master');
+    shRetry(`git push origin v${version}`);
   }
 
   let releaseUrl = '';
-  if (!skip('--skip-github')) {
-    if (dryRun) log('(dry-run) 将创建/更新 GitHub Release 并上传 release/ 下的安装包');
-    else releaseUrl = await publishGithub(version);
-  } else log('已跳过 GitHub Release（--skip-github）');
-
   if (!skip('--skip-build')) {
     step('构建安装包');
     if (dryRun) log('(dry-run) 将执行构建');
@@ -200,6 +227,11 @@ async function publishNpm() {
     else if (process.platform === 'win32') sh('npm run dist:win');
     else log('⚠ 非 macOS/Windows，跳过构建（可加 --skip-build 显式跳过）');
   } else log('已跳过构建（--skip-build）');
+
+  if (!skip('--skip-github')) {
+    if (dryRun) log('(dry-run) 将创建/更新 GitHub Release 并上传 release/ 下的安装包');
+    else releaseUrl = await publishGithub(version);
+  } else log('已跳过 GitHub Release（--skip-github）');
 
   if (!skip('--skip-npm')) {
     if (dryRun) log('(dry-run) 将发布 npm: ' + pkg.name + '@' + version);
