@@ -21,6 +21,7 @@ module.exports = impl ? {
   isSelfElevated: impl.isSelfElevated || (() => false),
   activate: wrap(impl.activate),
   minimize: wrap(impl.minimize),
+  terminate: wrap(impl.terminate),
   mapVirtualKeyToChar: impl.mapVirtualKeyToChar || (() => null),
   getIcon: wrap(impl.getIcon),
 } : {
@@ -31,6 +32,7 @@ module.exports = impl ? {
   isSelfElevated: () => false,
   activate: () => Promise.resolve(false),
   minimize: () => Promise.resolve(null),
+  terminate: () => Promise.resolve(false),
   mapVirtualKeyToChar: () => null,
   getIcon: () => Promise.resolve(null),
 };

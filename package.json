@@ -1,7 +1,7 @@
 {
   "name": "alt-switch",
   "productName": "AltSwitch",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "macOS 风格的跨平台应用切换器 (Windows / macOS)，JS 技术栈 (Electron)",
   "main": "main.js",
   "repository": {

@@ -152,6 +152,36 @@ function isSelfElevated() {
   return false; // macOS 无管理员/普通权限切换限制
 }
 
+function isAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return false; }
+}
+
+// 结束进程：优先 AppleScript quit（优雅退出，等价 Cmd+Q），失败则 SIGTERM 兜底
+async function terminate(app) {
+  try {
+    if (app && app.pid && app.bundleid) {
+      const ok = await runOk('/usr/bin/osascript', ['-e', `tell application id "${app.bundleid}" to quit`]);
+      if (ok) {
+        for (let i = 0; i < 6; i++) {
+          if (!isAlive(app.pid)) return true;
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    }
+    // 兜底：SIGTERM（多数应用会优雅退出）
+    if (app && app.pid) {
+      try { process.kill(app.pid, 'SIGTERM'); } catch (e) { }
+      for (let i = 0; i < 4; i++) {
+        if (!isAlive(app.pid)) return true;
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    return !!(app && app.pid && !isAlive(app.pid));
+  } catch (e) {
+    return false;
+  }
+}
+
 // 激活：优先用 bundle 路径 open（最可靠，能前置），再按名称，最后 AppleScript
 async function activate(app) {
   try {
@@ -227,4 +257,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, isSelfElevated, mapVirtualKeyToChar, parseLsappinfo, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, mapVirtualKeyToChar, parseLsappinfo, getIcon };

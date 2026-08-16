@@ -154,6 +154,18 @@ function render() {
     card.appendChild(chk);
     card.appendChild(av);
     card.appendChild(body);
+
+    // 结束进程按钮（悬停显示）
+    const killBtn = document.createElement('button');
+    killBtn.className = 'kill-btn';
+    killBtn.textContent = '✕';
+    killBtn.title = '结束进程';
+    killBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      api.killApp(a.key);
+    });
+    card.appendChild(killBtn);
+
     card.addEventListener('click', () => toggle(a.key));
     list.appendChild(card);
   }

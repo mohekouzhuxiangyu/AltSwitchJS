@@ -1,7 +1,7 @@
 'use strict';
 // AltSwitch 主进程：窗口 / 全局快捷键 / 循环切换 / 托盘 / 配置 / IPC
 
-const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const platform = require('./platform');
@@ -285,6 +285,28 @@ function quit() {
   setTimeout(() => { try { process.exit(0); } catch (e) { } }, 2000);
 }
 
+// ---------- 结束进程 ----------
+async function killAppByKey(key, confirm) {
+  const appObj = apps.find(a => a.key === key);
+  if (!appObj) return { ok: false, err: '未找到该应用' };
+  if (confirm && win && !win.isDestroyed()) {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: ['结束进程', '取消'],
+      defaultId: 1,
+      cancelId: 1,
+      title: '结束进程',
+      message: `确定要结束「${appObj.name}」吗？`,
+      detail: '该应用的未保存内容可能会丢失。',
+    });
+    if (response !== 0) return { ok: false, canceled: true };
+  }
+  const ok = await platform.terminate(appObj);
+  scanLoop(); // 结束后立即刷新列表
+  pushState();
+  return { ok, name: appObj.name };
+}
+
 // ---------- IPC ----------
 ipcMain.handle('get-state', () => buildState());
 ipcMain.handle('set-selected', (e, keys) => {
@@ -307,6 +329,7 @@ ipcMain.handle('set-hotkey', (e, { mods, key }) => {
   return { ok: hotkeyOk, err: hotkeyErr, hotkey: hotkeyDisplay() };
 });
 ipcMain.handle('refresh', () => scanLoop());
+ipcMain.handle('kill-app', (e, key) => killAppByKey(key, true));
 ipcMain.handle('show-window', () => showWindow());
 ipcMain.handle('quit', () => quit());
 ipcMain.handle('set-focus-mode', (e, v) => {
@@ -395,6 +418,14 @@ app.whenReady().then(async () => {
   if (tsIdx !== -1) {
     const ms = parseInt(process.argv[tsIdx + 1], 10) || 3000;
     setTimeout(() => { switchNext(); }, ms);
+  }
+
+  // 测试辅助：--test-kill <key> <ms> 指定时间后结束某应用（跳过确认框，端到端测试用）
+  const tkIdx = process.argv.indexOf('--test-kill');
+  if (tkIdx !== -1) {
+    const key = process.argv[tkIdx + 1];
+    const ms = parseInt(process.argv[tkIdx + 2], 10) || 5000;
+    setTimeout(() => { killAppByKey(key, false); }, ms);
   }
 
   app.on('activate', () => showWindow()); // macOS 点击 Dock 图标

@@ -5,6 +5,7 @@
 
 const koffi = require('koffi');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const user32 = koffi.load('user32.dll');
 const kernel32 = koffi.load('kernel32.dll');
@@ -302,6 +303,23 @@ function minimize(app) {
   } catch (e) { }
 }
 
+// 结束进程：taskkill 先优雅关闭（WM_CLOSE），失败则 /f 强制结束（含子进程）
+function runCmd(cmd, args) {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { timeout: 15000 }, (err) => resolve(!err));
+  });
+}
+async function terminate(app) {
+  try {
+    if (app && app.pid) {
+      let ok = await runCmd('taskkill', ['/pid', String(app.pid), '/t']);
+      if (!ok) ok = await runCmd('taskkill', ['/pid', String(app.pid), '/f', '/t']);
+      return ok;
+    }
+  } catch (e) { }
+  return false;
+}
+
 // ---------- 快捷键显示 ----------
 function mapVirtualKeyToChar(vk) {
   try {
@@ -325,4 +343,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, isSelfElevated, mapVirtualKeyToChar, getExePath, processKeyFromExe, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, mapVirtualKeyToChar, getExePath, processKeyFromExe, getIcon };
