@@ -10,7 +10,8 @@
 //   GitHub: 环境变量 GITHUB_TOKEN / GH_TOKEN；macOS 上自动回退读取钥匙串凭据
 //   npm:    环境变量 NPM_TOKEN（带 "Enable bypass 2FA" 的 granular token）
 //
-// 注意: macOS 构建只能在 macOS 上执行；Windows 构建在 Windows 上执行（自动切换）。
+// 注意: 在 macOS 上一条命令即可同时构建 macOS + Windows（electron-builder 交叉构建 Windows，无需 wine）；
+//       在 Windows 上只能构建 Windows（macOS 应用必须在 macOS 上构建）。
 
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -155,9 +156,9 @@ async function publishGithub(version) {
   const existing = new Set((release ? release.assets : []).map(a => a.name));
   const dir = path.join(process.cwd(), 'release');
   if (!fs.existsSync(dir)) { log('无 release/ 目录，跳过资产上传'); return url; }
-  // 只上传当前版本的产物（避免把旧版本的安装包传进新 Release）
+  // 只上传当前版本的产物（mac dmg/zip + win Setup/portable exe），避免旧版本或 blockmap 混入
   const assets = fs.readdirSync(dir)
-    .filter(f => f.includes(`AltSwitch-${version}`) && /\.(dmg|zip|exe)$/.test(f) && !f.endsWith('.blockmap'))
+    .filter(f => f.includes(version) && /\.(dmg|zip|exe)$/.test(f) && !f.endsWith('.blockmap'))
     .sort();
   for (const name of assets) {
     if (existing.has(name)) { log(`跳过已上传: ${name}`); continue; }
@@ -223,9 +224,13 @@ async function publishNpm() {
   if (!skip('--skip-build')) {
     step('构建安装包');
     if (dryRun) log('(dry-run) 将执行构建');
-    else if (process.platform === 'darwin') sh('npm run dist:mac');
-    else if (process.platform === 'win32') sh('npm run dist:win');
-    else log('⚠ 非 macOS/Windows，跳过构建（可加 --skip-build 显式跳过）');
+    else if (process.platform === 'darwin') {
+      // macOS 上一条命令同时构建两个平台（electron-builder 交叉构建 Windows，无需 wine）
+      sh('npm run dist:all');
+    } else if (process.platform === 'win32') {
+      // Windows 上只能构建 Windows（macOS 应用必须在 macOS 上构建）
+      sh('npm run dist:win');
+    } else log('⚠ 非 macOS/Windows，跳过构建（可加 --skip-build 显式跳过）');
   } else log('已跳过构建（--skip-build）');
 
   if (!skip('--skip-github')) {

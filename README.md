@@ -48,10 +48,13 @@ macOS 风格的应用切换器，**Windows / macOS 通用**。JS 技术栈（Ele
 git clone <仓库地址> && cd AltSwitchJS
 npm install
 npm start                # 开发模式运行
-npm run dist:win         # Windows 打包（安装器 + portable + 绿色版）
-npm run dist:mac         # macOS 打包（dmg + zip，需在 Mac 上执行）
-npm run dist:all         # 双平台打包
+npm run dist:all         # ★ 一条命令同时构建 macOS + Windows（推荐）
+npm run dist:win         # 仅 Windows（安装器 + portable）
+npm run dist:mac         # 仅 macOS（dmg + zip）
+npm run release          # 一键发布（构建双平台 → GitHub Release → npm）
 ```
+
+> **双平台构建说明**：`dist:all` 在 **macOS 上即可同时构建 macOS 与 Windows 两个平台**（electron-builder 交叉构建 Windows，无需 wine）。Windows 机器上只能构建 Windows 产物（macOS 应用必须在 macOS 上构建），发布请使用 macOS 机器。
 
 > 国内网络：安装依赖/打包时若二进制下载失败，先设置镜像：
 > `$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"` 与
