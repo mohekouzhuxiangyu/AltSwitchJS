@@ -26,9 +26,18 @@
 
     <!-- 快捷键栏（普通样式） -->
     <section class="hotkey-bar">
-      <div class="pill"><span class="muted">切换快捷键</span><span id="hotkey" class="key">Alt + `</span></div>
-      <button id="btn-hotkey" class="btn primary">修改…</button>
-      <span id="hotkey-status" class="status"></span>
+      <div class="hotkey-groups">
+        <div class="hotkey-group">
+          <div class="pill"><span class="muted">切换快捷键</span><span id="hotkey" class="key">Alt + `</span></div>
+          <button id="btn-hotkey" class="btn primary">修改…</button>
+          <span id="hotkey-status" class="status"></span>
+        </div>
+        <div class="hotkey-group">
+          <div class="pill"><span class="muted">打开窗口</span><span id="win-hotkey" class="key">Cmd + Shift + Alt + A</span></div>
+          <button id="btn-win-hotkey" class="btn primary">修改…</button>
+          <span id="win-hotkey-status" class="status"></span>
+        </div>
+      </div>
       <label class="focus-switch" title="切换时最小化其他勾选窗口，只保留当前窗口">
         <span class="muted">专注模式</span>
         <span class="switch" id="switch-focus"><span class="knob"></span></span>

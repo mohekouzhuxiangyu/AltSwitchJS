@@ -14,9 +14,12 @@ let quitting = false;
 let cfg = loadConfig();                 // { mods, key, selected: [key...] }
 let apps = [];                          // 最近一次扫描结果
 let mru = [];                           // 最近使用顺序：索引 0 = 最久未用（下一个被切换）
-let hotkey = { mods: cfg.mods || 1, key: cfg.key || '`' };
+let hotkey = { mods: cfg.mods || 1, key: cfg.key || '`' };                       // 切换快捷键
+let winHotkey = { mods: cfg.winMods === undefined ? 13 : cfg.winMods, key: cfg.winKey || 'A' }; // 打开主窗口快捷键（默认 Cmd+Shift+Alt+A）
 let hotkeyOk = false;
 let hotkeyErr = '';
+let winHotkeyOk = false;
+let winHotkeyErr = '';
 let lastFgKey = null;
 let lastSwitchError = '';
 let selfElevated = false;
@@ -45,9 +48,17 @@ function hotkeyDisplay() {
   const m = modsLabel(hotkey.mods);
   return m ? `${m} + ${hotkey.key}` : hotkey.key;
 }
+function winHotkeyDisplay() {
+  const m = modsLabel(winHotkey.mods);
+  return m ? `${m} + ${winHotkey.key}` : winHotkey.key;
+}
 function accelString() {
   const m = modsAccel(hotkey.mods);
   return m ? `${m}+${hotkey.key}` : hotkey.key;
+}
+function winAccelString() {
+  const m = modsAccel(winHotkey.mods);
+  return m ? `${m}+${winHotkey.key}` : winHotkey.key;
 }
 
 // ---------- 配置 ----------
@@ -60,12 +71,15 @@ function loadConfig() {
     return {
       mods: typeof c.mods === 'number' ? c.mods : 1,
       key: typeof c.key === 'string' && c.key ? c.key : '`',
+      // 打开主窗口快捷键：默认 Cmd+Shift+Alt+A（bit: Alt1|Shift4|Cmd8=13）
+      winMods: c.winMods === undefined ? 13 : c.winMods,
+      winKey: typeof c.winKey === 'string' && c.winKey ? c.winKey : 'A',
       selected: Array.isArray(c.selected) ? c.selected : [],
       // 专注模式默认开启：旧配置无此字段时也按开启处理，用户显式关闭过则保持关闭
       focusMode: c.focusMode === undefined ? true : !!c.focusMode,
     };
   } catch (e) {
-    return { mods: 1, key: '`', selected: [], focusMode: true };
+    return { mods: 1, key: '`', winMods: 13, winKey: 'A', selected: [], focusMode: true };
   }
 }
 function saveConfig() {
@@ -80,6 +94,9 @@ function applyHotkey() {
   globalShortcut.unregisterAll();
   hotkeyOk = false;
   hotkeyErr = '';
+  winHotkeyOk = false;
+  winHotkeyErr = '';
+  // 切换快捷键
   const accel = accelString();
   try {
     hotkeyOk = globalShortcut.register(accel, () => switchNext());
@@ -87,6 +104,14 @@ function applyHotkey() {
     hotkeyErr = String((e && e.message) || e);
   }
   if (!hotkeyOk) hotkeyErr = `注册失败：${accel} 已被占用或系统不允许`;
+  // 打开主窗口快捷键
+  const wAccel = winAccelString();
+  try {
+    winHotkeyOk = globalShortcut.register(wAccel, () => showWindow());
+  } catch (e) {
+    winHotkeyErr = String((e && e.message) || e);
+  }
+  if (!winHotkeyOk) winHotkeyErr = `注册失败：${wAccel} 已被占用或系统不允许`;
   pushState();
 }
 
@@ -186,6 +211,9 @@ function buildState() {
     hotkey: hotkeyDisplay(),
     hotkeyOk,
     hotkeyErr,
+    winHotkey: winHotkeyDisplay(),
+    winHotkeyOk,
+    winHotkeyErr,
     platform: process.platform,
     selfElevated,
     lastSwitchError,
@@ -314,19 +342,26 @@ ipcMain.handle('set-selected', (e, keys) => {
   saveConfig();
   pushState();
 });
-ipcMain.handle('set-hotkey', (e, { mods, key }) => {
-  const old = { mods: hotkey.mods, key: hotkey.key };
-  hotkey = { mods: Number(mods) || 0, key: String(key || '') };
+ipcMain.handle('set-hotkey', (e, { which, mods, key }) => {
+  const isWin = which === 'window';
+  const old = isWin ? { ...winHotkey } : { ...hotkey };
+  if (isWin) winHotkey = { mods: Number(mods) || 0, key: String(key || '') };
+  else hotkey = { mods: Number(mods) || 0, key: String(key || '') };
   applyHotkey();
-  if (hotkeyOk) {
-    cfg.mods = hotkey.mods;
-    cfg.key = hotkey.key;
+  if (isWin ? winHotkeyOk : hotkeyOk) {
+    if (isWin) {
+      cfg.winMods = winHotkey.mods;
+      cfg.winKey = winHotkey.key;
+    } else {
+      cfg.mods = hotkey.mods;
+      cfg.key = hotkey.key;
+    }
     saveConfig();
   } else {
-    hotkey = old; // 还原
+    if (isWin) winHotkey = old; else hotkey = old; // 还原
     applyHotkey();
   }
-  return { ok: hotkeyOk, err: hotkeyErr, hotkey: hotkeyDisplay() };
+  return { ok: isWin ? winHotkeyOk : hotkeyOk, err: isWin ? winHotkeyErr : hotkeyErr, hotkey: isWin ? winHotkeyDisplay() : hotkeyDisplay() };
 });
 ipcMain.handle('refresh', () => scanLoop());
 ipcMain.handle('kill-app', (e, key) => killAppByKey(key, true));

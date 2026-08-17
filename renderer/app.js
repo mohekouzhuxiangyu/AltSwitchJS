@@ -88,6 +88,16 @@ function render() {
     st.textContent = state.hotkeyErr || '未注册';
     st.className = 'status err';
   }
+  // 打开主窗口快捷键
+  el('win-hotkey').textContent = state.winHotkey || '—';
+  const wst = el('win-hotkey-status');
+  if (state.winHotkeyOk) {
+    wst.textContent = '✓ 已启用';
+    wst.className = 'status ok';
+  } else {
+    wst.textContent = state.winHotkeyErr || '未注册';
+    wst.className = 'status err';
+  }
   el('count').textContent = `已选 ${state.selectedCount} / ${state.totalCount}`;
 
   // 专注模式开关状态
@@ -183,6 +193,7 @@ async function toggle(key) {
 let dlgMods = 0;
 let dlgKey = null;
 let dlgOpen = false;
+let dlgTarget = 'switch'; // 'switch'（切换） | 'window'（打开主窗口）
 
 function comboText() {
   const isMac = platformName === 'darwin';
@@ -191,8 +202,9 @@ function comboText() {
   return m ? `${m} + ${k}` : k;
 }
 
-function openDlg() {
+function openDlg(target = 'switch') {
   dlgOpen = true;
+  dlgTarget = target;
   dlgMods = 0;
   dlgKey = null;
   el('dlg-msg').textContent = '';
@@ -233,7 +245,7 @@ document.addEventListener('keydown', async (e) => {
     return;
   }
 
-  const res = await api.setHotkey({ mods, key });
+  const res = await api.setHotkey({ which: dlgTarget, mods, key });
   if (res.ok) {
     closeDlg();
   } else {
@@ -254,7 +266,8 @@ el('btn-clear').addEventListener('click', async () => {
   await api.setSelected([]);
 });
 el('btn-refresh').addEventListener('click', () => api.refresh());
-el('btn-hotkey').addEventListener('click', openDlg);
+el('btn-hotkey').addEventListener('click', () => openDlg('switch'));
+el('btn-win-hotkey').addEventListener('click', () => openDlg('window'));
 el('btn-admin').addEventListener('click', () => api.relaunchAdmin());
 el('switch-focus').addEventListener('click', async () => {
   state.focusMode = !state.focusMode;
