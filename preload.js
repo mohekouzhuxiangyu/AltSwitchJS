@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('altSwitch', {
   relaunchAdmin: () => ipcRenderer.invoke('relaunch-admin'),
   setFocusMode: (v) => ipcRenderer.invoke('set-focus-mode', v),
   killApp: (key) => ipcRenderer.invoke('kill-app', key),
+  dlgOpen: () => ipcRenderer.send('dlg-open'),
+  dlgClose: () => ipcRenderer.send('dlg-close'),
   onState: (cb) => {
     ipcRenderer.on('state', (_e, s) => cb(s));
   },

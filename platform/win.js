@@ -34,6 +34,7 @@ const SendMessageTimeoutW = user32.func('intptr_t __stdcall SendMessageTimeoutW(
 const SetWindowPos = user32.func('bool __stdcall SetWindowPos(intptr_t hWnd, intptr_t hWndInsertAfter, int32 x, int32 y, int32 cx, int32 cy, uint32 uFlags)');
 const keybd_event = user32.func('void __stdcall keybd_event(uint8 bVk, uint8 bScan, uint32 dwFlags, intptr_t dwExtraInfo)');
 const SystemParametersInfoW = user32.func('bool __stdcall SystemParametersInfoW(uint32 uiAction, uint32 uiParam, intptr_t pvParam, uint32 fWinIni)');
+const GetAsyncKeyState = user32.func('int16 __stdcall GetAsyncKeyState(int32 vKey)');
 const OpenProcess = kernel32.func('intptr_t __stdcall OpenProcess(uint32 dwDesiredAccess, bool bInheritHandle, uint32 dwProcessId)');
 const CloseHandle = kernel32.func('bool __stdcall CloseHandle(intptr_t hObject)');
 const QueryFullProcessImageNameW = kernel32.func('bool __stdcall QueryFullProcessImageNameW(intptr_t hProcess, uint32 dwFlags, char16_t *lpExeName, _Inout_ uint32 *lpdwSize)');
@@ -319,6 +320,18 @@ async function terminate(app) {
   return false;
 }
 
+// 修饰键实时状态查询（用于"双击 Win"唤出主窗口，等价 macOS 的双击 Command）
+const MOD_VKS = { 1: 0x12, 2: 0x11, 4: 0x10, 8: 0x5B }; // Alt, Ctrl, Shift, Win
+function isModifierKeyDown(mods) {
+  try {
+    const vk = MOD_VKS[mods];
+    if (!vk) return false;
+    return !!(GetAsyncKeyState(vk) & 0x8000);
+  } catch (e) {
+    return false;
+  }
+}
+
 // 应用图标（Windows：取 exe 关联的图标）
 async function getIcon(app) {
   try {
@@ -330,4 +343,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, isModifierKeyDown, getIcon };

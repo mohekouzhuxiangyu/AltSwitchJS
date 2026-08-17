@@ -152,6 +152,26 @@ function isSelfElevated() {
   return false; // macOS 无管理员/普通权限切换限制
 }
 
+// 修饰键实时状态查询（用于"双击 Command"唤出主窗口）
+// Electron 的 globalShortcut 无法注册单独修饰键，这里用 koffi 轮询
+// CGEventSourceKeyState（读取系统键状态，无需辅助功能权限）。
+const MOD_KEYCODES = { 1: 0x3A, 2: 0x3B, 4: 0x38, 8: 0x37 }; // Alt/Option, Ctrl, Shift, Cmd
+let cgKeyState = null;
+function isModifierKeyDown(mods) {
+  try {
+    const code = MOD_KEYCODES[mods];
+    if (!code) return false;
+    if (!cgKeyState) {
+      const koffi = require('koffi');
+      const cg = koffi.load('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices');
+      cgKeyState = cg.func('bool CGEventSourceKeyState(int sourceStateID, unsigned short keyCode)');
+    }
+    return !!cgKeyState(1, code); // kCGEventSourceStateCombinedSessionState
+  } catch (e) {
+    return false;
+  }
+}
+
 function isAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return false; }
 }
@@ -253,4 +273,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, parseLsappinfo, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, isModifierKeyDown, parseLsappinfo, getIcon };

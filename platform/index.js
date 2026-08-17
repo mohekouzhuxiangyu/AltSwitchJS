@@ -22,6 +22,7 @@ module.exports = impl ? {
   activate: wrap(impl.activate),
   minimize: wrap(impl.minimize),
   terminate: wrap(impl.terminate),
+  isModifierKeyDown: wrap(impl.isModifierKeyDown),
   getIcon: wrap(impl.getIcon),
 } : {
   scan: () => Promise.resolve([]),
@@ -32,5 +33,6 @@ module.exports = impl ? {
   activate: () => Promise.resolve(false),
   minimize: () => Promise.resolve(null),
   terminate: () => Promise.resolve(false),
+  isModifierKeyDown: () => Promise.resolve(false),
   getIcon: () => Promise.resolve(null),
 };

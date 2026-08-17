@@ -194,6 +194,8 @@ let dlgMods = 0;
 let dlgKey = null;
 let dlgOpen = false;
 let dlgTarget = 'switch'; // 'switch'（切换） | 'window'（打开主窗口）
+let dlgLastMod = 0;       // 双击捕获：上次按下的修饰键 bit
+let dlgLastModAt = 0;     // 上次按下时间
 
 function comboText() {
   const isMac = platformName === 'darwin';
@@ -207,14 +209,18 @@ function openDlg(target = 'switch') {
   dlgTarget = target;
   dlgMods = 0;
   dlgKey = null;
+  dlgLastMod = 0;
+  dlgLastModAt = 0;
   el('dlg-msg').textContent = '';
   el('combo').textContent = '—';
   el('dlg-mask').classList.remove('hidden');
+  api.dlgOpen(); // 主进程抑制双击切换
 }
 
 function closeDlg() {
   dlgOpen = false;
   el('dlg-mask').classList.add('hidden');
+  api.dlgClose();
 }
 
 document.addEventListener('keydown', async (e) => {
@@ -229,6 +235,16 @@ document.addEventListener('keydown', async (e) => {
   const isModifier = ['Control', 'Alt', 'Shift', 'Meta', 'Win', 'Cmd', 'AltGraph'].includes(e.key);
 
   if (isModifier) {
+    const now = Date.now();
+    // 同一修饰键 600ms 内再次按下 → 双击模式（仅"打开窗口"支持）
+    if (dlgTarget === 'window' && mods && mods === dlgLastMod && now - dlgLastModAt <= 600) {
+      const res = await api.setHotkey({ which: dlgTarget, mode: 'double', doubleMods: mods });
+      if (res.ok) closeDlg();
+      else el('dlg-msg').textContent = res.err || '设置失败';
+      return;
+    }
+    dlgLastMod = mods;
+    dlgLastModAt = now;
     dlgMods = mods;
     dlgKey = null;
     el('combo').textContent = comboText();
@@ -240,12 +256,13 @@ document.addEventListener('keydown', async (e) => {
     el('dlg-msg').textContent = '不支持的按键';
     return;
   }
+  dlgLastMod = 0; // 非修饰键打断双击跟踪
   if (!mods) {
     el('dlg-msg').textContent = '需要至少一个修饰键（Ctrl / Alt / Shift / Win）';
     return;
   }
 
-  const res = await api.setHotkey({ which: dlgTarget, mods, key });
+  const res = await api.setHotkey({ which: dlgTarget, mode: 'chord', mods, key });
   if (res.ok) {
     closeDlg();
   } else {

@@ -15,11 +15,12 @@ let cfg = loadConfig();                 // { mods, key, selected: [key...] }
 let apps = [];                          // 最近一次扫描结果
 let mru = [];                           // 最近使用顺序：索引 0 = 最久未用（下一个被切换）
 let hotkey = { mods: cfg.mods || 1, key: cfg.key || '`' };                       // 切换快捷键
-let winHotkey = { mods: cfg.winMods === undefined ? 13 : cfg.winMods, key: cfg.winKey || 'A' }; // 打开主窗口快捷键（默认 Cmd+Shift+Alt+A）
+let winHotkey = { mods: cfg.winMods === undefined ? 13 : cfg.winMods, key: cfg.winKey || 'A' }; // 打开窗口快捷键（chord 组合键模式）
 let hotkeyOk = false;
 let hotkeyErr = '';
 let winHotkeyOk = false;
 let winHotkeyErr = '';
+let dlgSuppressed = false;   // 快捷键设置对话框打开时抑制双击切换
 let lastFgKey = null;
 let lastSwitchError = '';
 let selfElevated = false;
@@ -49,6 +50,11 @@ function hotkeyDisplay() {
   return m ? `${m} + ${hotkey.key}` : hotkey.key;
 }
 function winHotkeyDisplay() {
+  // double 模式：双击某修饰键（默认 Cmd/Win）
+  if (cfg.winMode === 'double') {
+    const m = modsLabel(cfg.winDoubleMods === undefined ? 8 : cfg.winDoubleMods);
+    return m ? `双击 ${m}` : '双击';
+  }
   const m = modsLabel(winHotkey.mods);
   return m ? `${m} + ${winHotkey.key}` : winHotkey.key;
 }
@@ -71,7 +77,9 @@ function loadConfig() {
     return {
       mods: typeof c.mods === 'number' ? c.mods : 1,
       key: typeof c.key === 'string' && c.key ? c.key : '`',
-      // 打开主窗口快捷键：默认 Cmd+Shift+Alt+A（bit: Alt1|Shift4|Cmd8=13）
+      // 打开主窗口快捷键：double = 双击修饰键（默认 Cmd/Win）；chord = 组合键
+      winMode: c.winMode === 'chord' ? 'chord' : 'double',
+      winDoubleMods: c.winDoubleMods === undefined ? 8 : c.winDoubleMods,
       winMods: c.winMods === undefined ? 13 : c.winMods,
       winKey: typeof c.winKey === 'string' && c.winKey ? c.winKey : 'A',
       selected: Array.isArray(c.selected) ? c.selected : [],
@@ -79,7 +87,7 @@ function loadConfig() {
       focusMode: c.focusMode === undefined ? true : !!c.focusMode,
     };
   } catch (e) {
-    return { mods: 1, key: '`', winMods: 13, winKey: 'A', selected: [], focusMode: true };
+    return { mods: 1, key: '`', winMode: 'double', winDoubleMods: 8, winMods: 13, winKey: 'A', selected: [], focusMode: true };
   }
 }
 function saveConfig() {
@@ -104,15 +112,47 @@ function applyHotkey() {
     hotkeyErr = String((e && e.message) || e);
   }
   if (!hotkeyOk) hotkeyErr = `注册失败：${accel} 已被占用或系统不允许`;
-  // 打开主窗口快捷键
-  const wAccel = winAccelString();
-  try {
-    winHotkeyOk = globalShortcut.register(wAccel, () => showWindow());
-  } catch (e) {
-    winHotkeyErr = String((e && e.message) || e);
+  // 打开主窗口：chord 模式注册全局组合键；double 模式用轮询双击检测（无需注册）
+  if (cfg.winMode === 'double') {
+    winHotkeyOk = true;
+  } else {
+    const wAccel = winAccelString();
+    try {
+      winHotkeyOk = globalShortcut.register(wAccel, () => showWindow());
+    } catch (e) {
+      winHotkeyErr = String((e && e.message) || e);
+    }
+    if (!winHotkeyOk) winHotkeyErr = `注册失败：${wAccel} 已被占用或系统不允许`;
   }
-  if (!winHotkeyOk) winHotkeyErr = `注册失败：${wAccel} 已被占用或系统不允许`;
   pushState();
+}
+
+// ---------- 双击修饰键唤出/隐藏主窗口（默认 双击 Cmd / 双击 Win） ----------
+let doubleTap = { prevDown: false, lastDownAt: 0, armed: false };
+function toggleMainWindow() {
+  if (!win || win.isDestroyed()) return;
+  if (win.isVisible() && !win.isMinimized()) win.hide();
+  else { win.show(); win.focus(); }
+}
+function startDoubleTapWatch() {
+  setInterval(async () => {
+    if (cfg.winMode !== 'double') return;
+    let down = false;
+    try { down = await platform.isModifierKeyDown(cfg.winDoubleMods === undefined ? 8 : cfg.winDoubleMods); } catch (e) { }
+    const now = Date.now();
+    if (down && !doubleTap.prevDown) {
+      // 按下沿：若在 500ms 内第二次按下 → 触发切换
+      if (doubleTap.armed && now - doubleTap.lastDownAt <= 500) {
+        doubleTap.armed = false;
+        if (!dlgSuppressed) toggleMainWindow();
+      } else {
+        doubleTap.armed = true;
+      }
+      doubleTap.lastDownAt = now;
+    }
+    doubleTap.prevDown = down;
+    if (doubleTap.armed && now - doubleTap.lastDownAt > 500) doubleTap.armed = false;
+  }, 30);
 }
 
 // 兼容旧配置：既支持窗口级 key（pid|proc|title），也支持旧进程级 key（proc）
@@ -342,11 +382,24 @@ ipcMain.handle('set-selected', (e, keys) => {
   saveConfig();
   pushState();
 });
-ipcMain.handle('set-hotkey', (e, { which, mods, key }) => {
+ipcMain.handle('set-hotkey', (e, { which, mode, mods, key, doubleMods }) => {
   const isWin = which === 'window';
+  // 打开窗口快捷键：双击修饰键模式
+  if (isWin && mode === 'double') {
+    cfg.winMode = 'double';
+    cfg.winDoubleMods = Number(doubleMods) || 8;
+    saveConfig();
+    applyHotkey();
+    return { ok: true, err: '', hotkey: winHotkeyDisplay() };
+  }
+  // 组合键模式（切换快捷键固定为组合键）
   const old = isWin ? { ...winHotkey } : { ...hotkey };
-  if (isWin) winHotkey = { mods: Number(mods) || 0, key: String(key || '') };
-  else hotkey = { mods: Number(mods) || 0, key: String(key || '') };
+  if (isWin) {
+    cfg.winMode = 'chord';
+    winHotkey = { mods: Number(mods) || 0, key: String(key || '') };
+  } else {
+    hotkey = { mods: Number(mods) || 0, key: String(key || '') };
+  }
   applyHotkey();
   if (isWin ? winHotkeyOk : hotkeyOk) {
     if (isWin) {
@@ -363,6 +416,9 @@ ipcMain.handle('set-hotkey', (e, { which, mods, key }) => {
   }
   return { ok: isWin ? winHotkeyOk : hotkeyOk, err: isWin ? winHotkeyErr : hotkeyErr, hotkey: isWin ? winHotkeyDisplay() : hotkeyDisplay() };
 });
+// 设置快捷键对话框打开/关闭：期间抑制双击切换（避免边设置边触发）
+ipcMain.on('dlg-open', () => { dlgSuppressed = true; });
+ipcMain.on('dlg-close', () => { dlgSuppressed = false; });
 ipcMain.handle('refresh', () => scanLoop());
 ipcMain.handle('kill-app', (e, key) => killAppByKey(key, true));
 ipcMain.handle('show-window', () => showWindow());
@@ -439,6 +495,7 @@ app.whenReady().then(async () => {
   createTray();
   applyHotkey();
   scanLoop();
+  startDoubleTapWatch();
   if (!process.env.ALTSWITCH_NO_SCAN) setInterval(scanLoop, 2000);
 
   // 测试辅助：--test-quit <ms> 指定时间后退出（quit 自带 process.exit 兜底）
