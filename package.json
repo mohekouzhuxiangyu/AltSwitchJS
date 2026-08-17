@@ -23,9 +23,9 @@
   "scripts": {
     "start": "electron .",
     "test:ffi": "node test-ffi.js",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:all": "electron-builder",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:all": "electron-builder --publish never",
     "release": "node scripts/release.js"
   },
   "author": "AltSwitch",
