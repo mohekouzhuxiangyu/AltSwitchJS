@@ -215,10 +215,6 @@ async function minimize(app) {
   } catch (e) { }
 }
 
-function mapVirtualKeyToChar(vk) {
-  return null;
-}
-
 // 应用图标：从 app bundle 的 .icns 提取真实图标
 // （Electron 的 app.getFileIcon 在 macOS 上只返回通用占位图标，不能用于列表）
 async function getIcon(app) {
@@ -257,4 +253,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, mapVirtualKeyToChar, parseLsappinfo, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, parseLsappinfo, getIcon };

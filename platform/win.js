@@ -34,7 +34,6 @@ const SendMessageTimeoutW = user32.func('intptr_t __stdcall SendMessageTimeoutW(
 const SetWindowPos = user32.func('bool __stdcall SetWindowPos(intptr_t hWnd, intptr_t hWndInsertAfter, int32 x, int32 y, int32 cx, int32 cy, uint32 uFlags)');
 const keybd_event = user32.func('void __stdcall keybd_event(uint8 bVk, uint8 bScan, uint32 dwFlags, intptr_t dwExtraInfo)');
 const SystemParametersInfoW = user32.func('bool __stdcall SystemParametersInfoW(uint32 uiAction, uint32 uiParam, intptr_t pvParam, uint32 fWinIni)');
-const MapVirtualKeyW = user32.func('uint32 __stdcall MapVirtualKeyW(uint32 uCode, uint32 uMapType)');
 const OpenProcess = kernel32.func('intptr_t __stdcall OpenProcess(uint32 dwDesiredAccess, bool bInheritHandle, uint32 dwProcessId)');
 const CloseHandle = kernel32.func('bool __stdcall CloseHandle(intptr_t hObject)');
 const QueryFullProcessImageNameW = kernel32.func('bool __stdcall QueryFullProcessImageNameW(intptr_t hProcess, uint32 dwFlags, char16_t *lpExeName, _Inout_ uint32 *lpdwSize)');
@@ -320,18 +319,6 @@ async function terminate(app) {
   return false;
 }
 
-// ---------- 快捷键显示 ----------
-function mapVirtualKeyToChar(vk) {
-  try {
-    const ch = MapVirtualKeyW(vk, 2);
-    if (!(ch & 0x80000000) && ch) {
-      const c = String.fromCharCode(ch & 0xFFFF);
-      if (c >= ' ' && c !== '\u007f') return c;
-    }
-  } catch (e) { }
-  return null;
-}
-
 // 应用图标（Windows：取 exe 关联的图标）
 async function getIcon(app) {
   try {
@@ -343,4 +330,4 @@ async function getIcon(app) {
   }
 }
 
-module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, mapVirtualKeyToChar, getExePath, processKeyFromExe, getIcon };
+module.exports = { scan, getForegroundInfo, isCurrent, isActivatable, activate, minimize, terminate, isSelfElevated, getIcon };

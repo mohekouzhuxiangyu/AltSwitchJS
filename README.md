@@ -128,12 +128,10 @@ AltSwitchJS/
 │   ├── mac.js         # macOS 实现（系统工具）
 │   └── index.js       # 平台选择
 ├── renderer/          # UI（HTML/CSS/JS）
-├── assets/            # 图标（icon.png / icon.ico / tray16.png）
-├── packaging/
-│   ├── install.nsi    # NSIS 备用安装脚本
-│   └── icogen.cs      # 图标生成工具（多尺寸 ico）
+├── assets/            # 图标（icon.png / icon.ico / tray16.png / tray-mac.png）
+├── scripts/release.js # 一键发布脚本
 ├── release/           # 构建产物（安装器/zip/portable）
-└── test-ffi.js        # FFI 层自测（node test-ffi.js）
+└── test-ffi.js        # Windows FFI 层自测（node test-ffi.js，需在 Windows 上运行）
 ```
 
 ## 更新日志
