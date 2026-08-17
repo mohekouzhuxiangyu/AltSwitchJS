@@ -1,0 +1,63 @@
+name: build-and-test
+
+# 一套代码，双平台自动验证：
+#  - macOS job：加载 mac.js + dist:all（同时构建 macOS 与 Windows 交叉产物）
+#  - Windows job：加载 win.js（验证 FFI 绑定）+ 构建 Windows + 运行打包应用冒烟测试
+# 你只需要在 macOS 上开发，Windows 侧由本工作流自动验证。
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  mac:
+    name: macOS 构建 + 冒烟测试
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 平台层加载测试（mac.js）
+        run: node -e "require('./platform/mac.js'); console.log('mac.js OK')"
+      - name: 构建 macOS + Windows（dist:all，交叉构建无需 wine）
+        run: npm run dist:all
+      - name: 收集产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-mac
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+          if-no-files-found: error
+
+  win:
+    name: Windows 构建 + 冒烟测试
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 平台层加载测试（win.js FFI 绑定）
+        run: node -e "require('./platform/win.js'); console.log('win.js OK')"
+      - name: 构建 Windows
+        run: npm run dist:win
+      - name: 运行打包应用冒烟测试（--test-quit 自动退出）
+        run: .\release\win-unpacked\AltSwitch.exe --test-quit 8000
+        timeout-minutes: 3
+      - name: 收集产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-win
+          path: release/*.exe
+          if-no-files-found: error
